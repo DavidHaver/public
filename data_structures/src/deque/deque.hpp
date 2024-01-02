@@ -44,6 +44,8 @@ private:
     std::shared_ptr<ItemsArray> m_first;
     std::shared_ptr<ItemsArray> m_last;
     size_t m_itemsInChunk;
+    
+    std::shared_ptr<ItemsArray> CopyList(const std::shared_ptr<ItemsArray> &from, std::shared_ptr<ItemsArray> *too);
 
     struct ItemsArray
     {
@@ -79,19 +81,19 @@ m_last(m_first), m_itemsInChunk(itemsInChunk)
 }
 
 template <class T>
-Deque<T>::Deque(const Deque &other) : m_first(new ItemsArray(*(other.m_first))), 
-m_itemsInChunk(other.m_itemsInChunk)
+Deque<T>::Deque(const Deque &other) : m_itemsInChunk(other.m_itemsInChunk)
 {
-    std::shared_ptr<ItemsArray> otherRunner = other.m_first;
-    std::shared_ptr<ItemsArray> runner = m_first;
-    while(other.m_last != otherRunner)
-    {
-        otherRunner = otherRunner->m_next;
-        runner->m_next = std::shared_ptr<ItemsArray>(new ItemsArray(*otherRunner));
-        runner->m_next->m_prev = runner;
-        runner = runner->m_next;
-    }
-    m_last = runner;
+    m_last = CopyList(other.m_first, &m_first);
+}
+
+template <class T>
+Deque<T> &Deque<T>::operator=(const Deque &rhs)
+{
+    std::shared_ptr<ItemsArray> failSafe;
+    m_last = CopyList(rhs.m_first, &failSafe);
+    m_first = failSafe;
+    m_itemsInChunk = rhs.m_itemsInChunk;
+    return *this;
 }
 
 template <class T>
@@ -168,6 +170,12 @@ const T &Deque<T>::Back() const
 }
 
 template <class T>
+bool Deque<T>::Empty() const noexcept
+{
+    return (0 == m_first->m_itemsStored);
+}
+
+template <class T>
 void Deque<T>::PushBack(const T &value)
 {
     T temp = value;
@@ -212,6 +220,22 @@ void Deque<T>::PushFront(T &&value)
 
     m_first->m_items.get()[0] = value;
     ++(m_first->m_itemsStored);
+}
+
+template <class T>
+std::shared_ptr<typename Deque<T>::ItemsArray> Deque<T>::CopyList(const std::shared_ptr<ItemsArray> &from, std::shared_ptr<ItemsArray> *too)
+{
+    *too = std::shared_ptr<ItemsArray>(new ItemsArray(*from));
+    std::shared_ptr<ItemsArray> fromRunner = from;
+    std::shared_ptr<ItemsArray> tooRunner = *too;
+    while(0 != fromRunner->m_next)
+    {
+        fromRunner = fromRunner->m_next;
+        tooRunner->m_next = std::shared_ptr<ItemsArray>(new ItemsArray(*fromRunner));
+        tooRunner->m_next->m_prev = tooRunner;
+        tooRunner = tooRunner->m_next;
+    }
+    return tooRunner;
 }
 
 template <class T>
